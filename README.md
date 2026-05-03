@@ -89,6 +89,17 @@ Planned improvements:
 - Web-based version for browser use
 - Possible Android version in future
 
+## Screenshot 1
+![3D Earth Navigation Visualizer](screenshot-3d-earth1.png)
+## Screenshot 2
+![3D Earth Navigation Visualizer](screenshot-3d-earth2.png)
+## Screenshot 3
+![3D Earth Navigation Visualizer](screenshot-3d-earth3.png)
+## Screenshot 4
+![3D Earth Navigation Visualizer](screenshot-3d-earth4.png)
+## Screenshot 5
+![3D Earth Navigation Visualizer](screenshot-3d-earth5.png)
+
 ## How to Run
 
 1. Install Python 3.x
