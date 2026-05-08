@@ -63,6 +63,39 @@ function createCentralAnglePoints(radius, latitude, longitude, segments = 40) {
   return points;
 }
 
+function createPolarAnglePoints(angleDegrees, radius = TEACHING_RADIUS * 0.34, segments = 40) {
+  const points = [];
+  const angle = toRadians(angleDegrees);
+  const northPoleY = GRID_RADIUS * 1.03;
+
+  for (let index = 0; index <= segments; index += 1) {
+    const theta = (angle * index) / segments;
+    points.push(new THREE.Vector3(radius * Math.cos(theta), northPoleY, radius * Math.sin(theta)));
+  }
+
+  return points;
+}
+
+function createPoleTangentArmPoints(angleDegrees, radius = TEACHING_RADIUS * 0.22, poleY = GRID_RADIUS * 1.03) {
+  const angle = toRadians(angleDegrees);
+  const center = new THREE.Vector3(0, poleY, 0);
+  const endpoint = new THREE.Vector3(radius * Math.cos(angle), poleY, radius * Math.sin(angle));
+
+  return [center, endpoint];
+}
+
+function createPoleAngleArcPoints(angleDegrees, radius = TEACHING_RADIUS * 0.22, poleY = GRID_RADIUS * 1.03, segments = 48) {
+  const points = [];
+  const angle = toRadians(angleDegrees);
+
+  for (let index = 0; index <= segments; index += 1) {
+    const theta = (angle * index) / segments;
+    points.push(new THREE.Vector3(radius * Math.cos(theta), poleY, radius * Math.sin(theta)));
+  }
+
+  return points;
+}
+
 function createLineGeometry(points) {
   return new THREE.BufferGeometry().setFromPoints(points);
 }
@@ -85,7 +118,23 @@ function projectToScreen(point, camera, renderer) {
   };
 }
 
-function createLatitudeTeachingLayer() {
+function formatLatitudeValue(latitude) {
+  if (latitude === 0) {
+    return `0${"\u00B0"} at Equator`;
+  }
+
+  return `${Math.abs(Math.round(latitude))}${"\u00B0"} ${latitude > 0 ? "N" : "S"}`;
+}
+
+function formatLongitudeValue(longitude) {
+  if (longitude === 0) {
+    return `0${"\u00B0"} at Prime Meridian`;
+  }
+
+  return `${Math.abs(Math.round(longitude))}${"\u00B0"} ${longitude > 0 ? "E" : "W"}`;
+}
+
+function createLatitudeLearningLayer() {
   const group = new THREE.Group();
   group.renderOrder = 20;
 
@@ -94,7 +143,7 @@ function createLatitudeTeachingLayer() {
       color: 0x7dd3fc,
       transparent: true,
       opacity: 0.15,
-      depthTest: true,
+      depthTest: false,
       depthWrite: false,
       side: THREE.DoubleSide,
     }),
@@ -132,6 +181,16 @@ function createLatitudeTeachingLayer() {
       depthTest: false,
       depthWrite: false,
     }),
+    northPole: new THREE.MeshBasicMaterial({
+      color: 0xf8ffff,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    southPole: new THREE.MeshBasicMaterial({
+      color: 0xff8c7a,
+      depthTest: true,
+      depthWrite: false,
+    }),
     center: new THREE.MeshBasicMaterial({
       color: 0xffffff,
       depthTest: false,
@@ -145,7 +204,7 @@ function createLatitudeTeachingLayer() {
   );
   equatorialPlane.position.set(0, 0, 0);
   equatorialPlane.rotation.x = -Math.PI / 2;
-  equatorialPlane.renderOrder = 5;
+  equatorialPlane.renderOrder = 30;
 
   const equatorLine = new THREE.LineLoop(
     createLineGeometry(createLatitudePoints(GRID_RADIUS, 0)),
@@ -178,6 +237,12 @@ function createLatitudeTeachingLayer() {
   const marker = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), styles.marker);
   marker.renderOrder = 25;
 
+  const northPoleMarker = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 20), styles.northPole);
+  northPoleMarker.renderOrder = 25;
+
+  const southPoleMarker = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 20), styles.southPole);
+  southPoleMarker.renderOrder = 25;
+
   const centerMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 20), styles.center);
   centerMarker.renderOrder = 25;
 
@@ -191,6 +256,8 @@ function createLatitudeTeachingLayer() {
     radiusToEquator,
     centralAngleArc,
     marker,
+    northPoleMarker,
+    southPoleMarker,
     centerMarker,
   );
 
@@ -204,13 +271,21 @@ function createLatitudeTeachingLayer() {
     point: new THREE.Vector3(GRID_RADIUS * 1.04, 0, GRID_RADIUS * 0.08),
   };
 
+  const northPoleLabelState = {
+    text: "North Pole",
+    point: new THREE.Vector3(0, GRID_RADIUS * 1.03, 0),
+  };
+
+  const southPoleLabelState = {
+    text: "South Pole",
+    point: new THREE.Vector3(0, -GRID_RADIUS * 1.03, 0),
+  };
+
   const update = (latitude, longitude, visible) => {
     const surfacePoint = createSpherePoint(GRID_RADIUS, latitude, longitude);
     const equatorPoint = createSpherePoint(GRID_RADIUS, 0, longitude);
     const meridianArcPoints = createLongitudePoints(GRID_RADIUS, longitude, 0, latitude, 64);
     const angleArcPoints = createCentralAnglePoints(TEACHING_RADIUS * 1.1, latitude, longitude, 80);
-    const labelLatitude = Math.round(Math.abs(latitude));
-    const hemisphere = latitude >= 0 ? "N" : "S";
     const labelMidpoint = angleArcPoints[Math.floor(angleArcPoints.length / 2)] ?? new THREE.Vector3();
 
     replaceLineGeometry(selectedParallelLine, createLatitudePoints(GRID_RADIUS, latitude));
@@ -221,11 +296,15 @@ function createLatitudeTeachingLayer() {
     replaceLineGeometry(centralAngleArc, angleArcPoints);
 
     marker.position.copy(surfacePoint);
+    northPoleMarker.position.set(0, GRID_RADIUS * 1.01, 0);
+    southPoleMarker.position.set(0, -GRID_RADIUS * 1.01, 0);
     centerMarker.position.set(0, 0, 0);
     group.visible = visible;
-    labelState.text = `Latitude = ${labelLatitude} deg ${hemisphere}`;
+    labelState.text = `Latitude = ${formatLatitudeValue(latitude)}`;
     labelState.point.copy(labelMidpoint);
     planeLabelState.point.set(GRID_RADIUS * 1.04, 0, GRID_RADIUS * 0.08);
+    northPoleLabelState.point.set(0, GRID_RADIUS * 1.03, 0);
+    southPoleLabelState.point.set(0, -GRID_RADIUS * 1.03, 0);
   };
 
   return {
@@ -233,10 +312,13 @@ function createLatitudeTeachingLayer() {
     update,
     labelState,
     planeLabelState,
+    northPoleLabelState,
+    southPoleLabelState,
     debugSummary() {
       return {
         equatorialPlane: 1,
         marker: 1,
+        poleMarkers: 2,
         angleArc: 1,
         meridianArc: 1,
         radiusLines: 2,
@@ -245,19 +327,294 @@ function createLatitudeTeachingLayer() {
   };
 }
 
+function createLongitudeLearningLayer() {
+  const group = new THREE.Group();
+  group.renderOrder = 20;
+
+  const styles = {
+    equator: new THREE.LineBasicMaterial({
+      color: 0xffd166,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    primeMeridian: new THREE.LineBasicMaterial({
+      color: 0xb8f3ff,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    primeMeridianPlane: new THREE.MeshBasicMaterial({
+      color: 0x4ade80,
+      transparent: true,
+      opacity: 0.08,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    oppositeMeridianPlane: new THREE.MeshBasicMaterial({
+      color: 0xc084fc,
+      transparent: true,
+      opacity: 0.08,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    selectedMeridianPlane: new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0.08,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    selectedMeridian: new THREE.LineBasicMaterial({
+      color: 0xfca5a5,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    equatorArc: new THREE.LineBasicMaterial({
+      color: 0xfff1a8,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.98,
+    }),
+    poleArc: new THREE.LineBasicMaterial({
+      color: 0xffd166,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.98,
+    }),
+    radius: new THREE.LineBasicMaterial({
+      color: 0x9be7ff,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.98,
+    }),
+    marker: new THREE.MeshBasicMaterial({
+      color: 0xffb020,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    northPole: new THREE.MeshBasicMaterial({
+      color: 0xf8ffff,
+      depthTest: true,
+      depthWrite: false,
+    }),
+    southPole: new THREE.MeshBasicMaterial({
+      color: 0xff8c7a,
+      depthTest: true,
+      depthWrite: false,
+    }),
+  };
+
+  const meridianPlaneGeometry = new THREE.CircleGeometry(EARTH_RADIUS * 1.05, 96);
+
+  const primeMeridianPlane = new THREE.Mesh(meridianPlaneGeometry, styles.primeMeridianPlane);
+  primeMeridianPlane.rotation.x = 0;
+  primeMeridianPlane.rotation.y = 0;
+  primeMeridianPlane.renderOrder = 30;
+
+  const oppositeMeridianPlane = new THREE.Mesh(
+    meridianPlaneGeometry.clone(),
+    styles.oppositeMeridianPlane,
+  );
+  oppositeMeridianPlane.rotation.x = 0;
+  oppositeMeridianPlane.rotation.y = Math.PI;
+  oppositeMeridianPlane.renderOrder = 30;
+
+  const selectedMeridianPlane = new THREE.Mesh(
+    meridianPlaneGeometry.clone(),
+    styles.selectedMeridianPlane,
+  );
+  selectedMeridianPlane.rotation.x = 0;
+  selectedMeridianPlane.rotation.y = toRadians(40);
+  selectedMeridianPlane.renderOrder = 30;
+
+  const equatorLine = new THREE.LineLoop(
+    createLineGeometry(createLatitudePoints(GRID_RADIUS, 0)),
+    styles.equator,
+  );
+  const primeMeridianLine = new THREE.Line(
+    createLineGeometry(createLongitudePoints(GRID_RADIUS, 0)),
+    styles.primeMeridian,
+  );
+  const selectedMeridianLine = new THREE.Line(
+    createLineGeometry(createLongitudePoints(GRID_RADIUS, 40)),
+    styles.selectedMeridian,
+  );
+  const equatorArcLine = new THREE.Line(
+    createLineGeometry(createLatitudePoints(GRID_RADIUS, 0, 0, 40, 72)),
+    styles.equatorArc,
+  );
+  const northPrimeArm = new THREE.Line(
+    createLineGeometry(createPoleTangentArmPoints(0, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03)),
+    styles.radius,
+  );
+  const northSelectedArm = new THREE.Line(
+    createLineGeometry(createPoleTangentArmPoints(40, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03)),
+    styles.radius,
+  );
+  const southPrimeArm = new THREE.Line(
+    createLineGeometry(createPoleTangentArmPoints(0, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03)),
+    styles.radius,
+  );
+  const southSelectedArm = new THREE.Line(
+    createLineGeometry(createPoleTangentArmPoints(40, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03)),
+    styles.radius,
+  );
+  const poleAngleArc = new THREE.Line(
+    createLineGeometry(createPoleAngleArcPoints(40, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03, 72)),
+    styles.poleArc,
+  );
+  const southPoleAngleArc = new THREE.Line(
+    createLineGeometry(createPoleAngleArcPoints(40, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03, 72)),
+    styles.poleArc,
+  );
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), styles.marker);
+  marker.renderOrder = 25;
+
+  const northPoleMarker = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 20), styles.northPole);
+  northPoleMarker.renderOrder = 25;
+
+  const southPoleMarker = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 20), styles.southPole);
+  southPoleMarker.renderOrder = 25;
+
+  group.add(
+    primeMeridianPlane,
+    oppositeMeridianPlane,
+    selectedMeridianPlane,
+    equatorLine,
+    primeMeridianLine,
+    selectedMeridianLine,
+    equatorArcLine,
+    northPrimeArm,
+    northSelectedArm,
+    southPrimeArm,
+    southSelectedArm,
+    poleAngleArc,
+    southPoleAngleArc,
+    marker,
+    northPoleMarker,
+    southPoleMarker,
+  );
+
+  const labelState = {
+    text: "",
+    point: new THREE.Vector3(),
+  };
+
+  const primeMeridianLabelState = {
+    text: "Prime Meridian (0\u00B0)",
+    point: new THREE.Vector3(GRID_RADIUS * 1.02, GRID_RADIUS * 0.4, 0),
+  };
+
+  const oppositeMeridianLabelState = {
+    text: "180\u00B0 E/W Meridian",
+    point: new THREE.Vector3(-GRID_RADIUS * 1.02, GRID_RADIUS * 0.34, 0),
+  };
+
+  const selectedMeridianLabelState = {
+    text: "Meridian through Place",
+    point: new THREE.Vector3(GRID_RADIUS * 0.4, GRID_RADIUS * 0.65, 0),
+  };
+
+  const northPoleLabelState = {
+    text: "North Pole",
+    point: new THREE.Vector3(0, GRID_RADIUS * 1.03, 0),
+  };
+
+  const southLongitudeLabelState = {
+    text: "",
+    point: new THREE.Vector3(GRID_RADIUS * 0.26, -GRID_RADIUS * 1.035, GRID_RADIUS * 0.04),
+  };
+
+  const update = (latitude, longitude, visible) => {
+    const surfacePoint = createSpherePoint(GRID_RADIUS, latitude, longitude);
+    const northLabelPoint = createPoleAngleArcPoints(longitude, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03, 72)[36] ?? new THREE.Vector3();
+    const southLabelPoint = createPoleAngleArcPoints(longitude, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03, 72)[36] ?? new THREE.Vector3();
+    const meridianLabelPoint = createSpherePoint(GRID_RADIUS * 1.04, Math.max(Math.min(latitude, 55), 18), longitude);
+    const primeLabelPoint = createSpherePoint(GRID_RADIUS * 1.04, 35, 0);
+    const oppositeLabelPoint = createSpherePoint(GRID_RADIUS * 1.04, 35, 180);
+    const longitudeText = `Longitude = ${formatLongitudeValue(longitude)}`;
+
+    replaceLineGeometry(selectedMeridianLine, createLongitudePoints(GRID_RADIUS, longitude));
+    replaceLineGeometry(equatorArcLine, createLatitudePoints(GRID_RADIUS, 0, 0, longitude, 72));
+    replaceLineGeometry(northPrimeArm, createPoleTangentArmPoints(0, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03));
+    replaceLineGeometry(northSelectedArm, createPoleTangentArmPoints(longitude, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03));
+    replaceLineGeometry(southPrimeArm, createPoleTangentArmPoints(0, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03));
+    replaceLineGeometry(southSelectedArm, createPoleTangentArmPoints(longitude, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03));
+    replaceLineGeometry(poleAngleArc, createPoleAngleArcPoints(longitude, TEACHING_RADIUS * 0.22, GRID_RADIUS * 1.03, 72));
+    replaceLineGeometry(southPoleAngleArc, createPoleAngleArcPoints(longitude, TEACHING_RADIUS * 0.22, -GRID_RADIUS * 1.03, 72));
+
+    marker.position.copy(surfacePoint);
+    northPoleMarker.position.set(0, GRID_RADIUS * 1.01, 0);
+    southPoleMarker.position.set(0, -GRID_RADIUS * 1.01, 0);
+    group.visible = visible;
+    labelState.text = longitudeText;
+    labelState.point.copy(northLabelPoint);
+    primeMeridianLabelState.point.copy(primeLabelPoint);
+    oppositeMeridianLabelState.point.copy(oppositeLabelPoint);
+    selectedMeridianLabelState.point.copy(meridianLabelPoint);
+    northPoleLabelState.point.set(0, GRID_RADIUS * 1.03, 0);
+    southLongitudeLabelState.text = longitudeText;
+    southLongitudeLabelState.point.copy(southLabelPoint).add(new THREE.Vector3(0.14, -0.04, 0));
+    primeMeridianPlane.visible = visible;
+    oppositeMeridianPlane.visible = visible;
+    selectedMeridianPlane.visible = visible;
+    selectedMeridianPlane.rotation.y = toRadians(longitude);
+    primeMeridianLabelState.text = "Prime Meridian (0\u00B0)";
+    oppositeMeridianLabelState.text = "180\u00B0 E/W Meridian";
+    selectedMeridianLabelState.text = "Meridian through Place";
+  };
+
+  return {
+    group,
+    update,
+    labelState,
+    northPoleLabelState,
+    southLongitudeLabelState,
+    primeMeridianLabelState,
+    oppositeMeridianLabelState,
+    selectedMeridianLabelState,
+    debugSummary() {
+      return {
+        marker: 1,
+        northPoleMarker: 1,
+        southPoleMarker: 1,
+        poleAngleArc: 2,
+        equatorArc: 1,
+        meridianLines: 2,
+        meridianPlanes: 3,
+      };
+    },
+  };
+}
+
 function App() {
   const mountRef = useRef(null);
   const latitudeLabelRef = useRef(null);
+  const longitudeLabelRef = useRef(null);
+  const southLongitudeLabelRef = useRef(null);
+  const primeMeridianLabelRef = useRef(null);
+  const oppositeMeridianLabelRef = useRef(null);
+  const selectedMeridianLabelRef = useRef(null);
   const planeLabelRef = useRef(null);
-  const teachingLayerRef = useRef(null);
+  const northPoleLabelRef = useRef(null);
+  const southPoleLabelRef = useRef(null);
+  const latitudeLayerRef = useRef(null);
+  const longitudeLayerRef = useRef(null);
   const showLatitudesRef = useRef(true);
   const showMeridiansRef = useRef(true);
-  const showLatitudeTeachingModeRef = useRef(false);
+  const showLatitudeLearningModeRef = useRef(false);
+  const showLongitudeLearningModeRef = useRef(false);
   const latitudeDegreesRef = useRef(30);
   const longitudeDegreesRef = useRef(40);
   const [showLatitudes, setShowLatitudes] = useState(true);
   const [showMeridians, setShowMeridians] = useState(true);
-  const [showLatitudeTeachingMode, setShowLatitudeTeachingMode] = useState(false);
+  const [showLatitudeLearningMode, setShowLatitudeLearningMode] = useState(false);
+  const [showLongitudeLearningMode, setShowLongitudeLearningMode] = useState(false);
   const [latitudeDegrees, setLatitudeDegrees] = useState(30);
   const [longitudeDegrees, setLongitudeDegrees] = useState(40);
 
@@ -270,8 +627,12 @@ function App() {
   }, [showMeridians]);
 
   useEffect(() => {
-    showLatitudeTeachingModeRef.current = showLatitudeTeachingMode;
-  }, [showLatitudeTeachingMode]);
+    showLatitudeLearningModeRef.current = showLatitudeLearningMode;
+  }, [showLatitudeLearningMode]);
+
+  useEffect(() => {
+    showLongitudeLearningModeRef.current = showLongitudeLearningMode;
+  }, [showLongitudeLearningMode]);
 
   useEffect(() => {
     latitudeDegreesRef.current = latitudeDegrees;
@@ -282,16 +643,25 @@ function App() {
   }, [longitudeDegrees]);
 
   useEffect(() => {
-    const layer = teachingLayerRef.current;
+    const latitudeLayer = latitudeLayerRef.current;
+    const longitudeLayer = longitudeLayerRef.current;
 
-    if (layer) {
-      layer.update(
+    if (latitudeLayer) {
+      latitudeLayer.update(
         latitudeDegreesRef.current,
         longitudeDegreesRef.current,
-        showLatitudeTeachingModeRef.current,
+        showLatitudeLearningModeRef.current,
       );
     }
-  }, [latitudeDegrees, longitudeDegrees, showLatitudeTeachingMode]);
+
+    if (longitudeLayer) {
+      longitudeLayer.update(
+        latitudeDegreesRef.current,
+        longitudeDegreesRef.current,
+        showLongitudeLearningModeRef.current,
+      );
+    }
+  }, [latitudeDegrees, longitudeDegrees, showLatitudeLearningMode, showLongitudeLearningMode]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -374,17 +744,31 @@ function App() {
     scene.add(latGroup);
     scene.add(lonGroup);
 
-    const teachingLayer = createLatitudeTeachingLayer();
-    teachingLayerRef.current = teachingLayer;
-    scene.add(teachingLayer.group);
-    teachingLayer.update(
+    const latitudeLayer = createLatitudeLearningLayer();
+    const longitudeLayer = createLongitudeLearningLayer();
+    latitudeLayerRef.current = latitudeLayer;
+    longitudeLayerRef.current = longitudeLayer;
+    scene.add(latitudeLayer.group);
+    scene.add(longitudeLayer.group);
+
+    latitudeLayer.update(
       latitudeDegreesRef.current,
       longitudeDegreesRef.current,
-      showLatitudeTeachingModeRef.current,
+      showLatitudeLearningModeRef.current,
     );
-    console.log("[LatitudeTeachingMode] created", {
-      ...teachingLayer.debugSummary(),
-      groupChildren: teachingLayer.group.children.length,
+    longitudeLayer.update(
+      latitudeDegreesRef.current,
+      longitudeDegreesRef.current,
+      showLongitudeLearningModeRef.current,
+    );
+
+    console.log("[LatitudeLearningMode] created", {
+      ...latitudeLayer.debugSummary(),
+      groupChildren: latitudeLayer.group.children.length,
+    });
+    console.log("[LongitudeLearningMode] created", {
+      ...longitudeLayer.debugSummary(),
+      groupChildren: longitudeLayer.group.children.length,
     });
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -409,37 +793,165 @@ function App() {
       lonGroup.visible = showMeridiansRef.current;
       controls.enabled = true;
 
-      const labelState = teachingLayer?.labelState;
-      const labelPoint = labelState?.point;
-      const labelText = labelState?.text ?? "";
-      const planeLabelState = teachingLayer?.planeLabelState;
+      const latitudeLayer = latitudeLayerRef.current;
+      const longitudeLayer = longitudeLayerRef.current;
+      const latitudeLabelState = latitudeLayer?.labelState;
+      const latitudeLabelPoint = latitudeLabelState?.point;
+      const latitudeLabelText = latitudeLabelState?.text ?? "";
+      const longitudeLabelState = longitudeLayer?.labelState;
+      const longitudeLabelPoint = longitudeLabelState?.point;
+      const longitudeLabelText = longitudeLabelState?.text ?? "";
+      const southLongitudeLabelState = longitudeLayer?.southLongitudeLabelState;
+      const southLongitudeLabelPoint = southLongitudeLabelState?.point;
+      const southLongitudeLabelText = southLongitudeLabelState?.text ?? "";
+      const primeMeridianLabelState = longitudeLayer?.primeMeridianLabelState;
+      const primeMeridianLabelPoint = primeMeridianLabelState?.point;
+      const primeMeridianLabelText = primeMeridianLabelState?.text ?? "";
+      const oppositeMeridianLabelState = longitudeLayer?.oppositeMeridianLabelState;
+      const oppositeMeridianLabelPoint = oppositeMeridianLabelState?.point;
+      const oppositeMeridianLabelText = oppositeMeridianLabelState?.text ?? "";
+      const selectedMeridianLabelState = longitudeLayer?.selectedMeridianLabelState;
+      const selectedMeridianLabelPoint = selectedMeridianLabelState?.point;
+      const selectedMeridianLabelText = selectedMeridianLabelState?.text ?? "";
+      const planeLabelState = latitudeLayer?.planeLabelState;
       const planeLabelPoint = planeLabelState?.point;
       const planeLabelText = planeLabelState?.text ?? "";
-      const canProjectLabel =
-        showLatitudeTeachingModeRef.current &&
+      const northPoleLabelState =
+        longitudeLayer?.northPoleLabelState ?? latitudeLayer?.northPoleLabelState;
+      const northPoleLabelPoint = northPoleLabelState?.point;
+      const northPoleLabelText = northPoleLabelState?.text ?? "";
+      const southPoleLabelState = latitudeLayer?.southPoleLabelState;
+      const southPoleLabelPoint = southPoleLabelState?.point;
+      const southPoleLabelText = southPoleLabelState?.text ?? "";
+
+      const canProjectLatitudeLabel =
+        showLatitudeLearningModeRef.current &&
         camera &&
         renderer &&
-        labelPoint instanceof THREE.Vector3;
+        latitudeLabelPoint instanceof THREE.Vector3;
+      const canProjectLongitudeLabel =
+        showLongitudeLearningModeRef.current &&
+        camera &&
+        renderer &&
+        longitudeLabelPoint instanceof THREE.Vector3;
+      const canProjectSouthLongitudeLabel =
+        showLongitudeLearningModeRef.current &&
+        camera &&
+        renderer &&
+        southLongitudeLabelPoint instanceof THREE.Vector3;
+      const canProjectPrimeMeridianLabel =
+        showLongitudeLearningModeRef.current &&
+        camera &&
+        renderer &&
+        primeMeridianLabelPoint instanceof THREE.Vector3;
+      const canProjectOppositeMeridianLabel =
+        showLongitudeLearningModeRef.current &&
+        camera &&
+        renderer &&
+        oppositeMeridianLabelPoint instanceof THREE.Vector3;
+      const canProjectSelectedMeridianLabel =
+        showLongitudeLearningModeRef.current &&
+        camera &&
+        renderer &&
+        selectedMeridianLabelPoint instanceof THREE.Vector3;
       const canProjectPlaneLabel =
-        showLatitudeTeachingModeRef.current &&
+        showLatitudeLearningModeRef.current &&
         camera &&
         renderer &&
         planeLabelPoint instanceof THREE.Vector3;
+      const canProjectNorthPoleLabel =
+        (showLatitudeLearningModeRef.current || showLongitudeLearningModeRef.current) &&
+        camera &&
+        renderer &&
+        northPoleLabelPoint instanceof THREE.Vector3;
+      const canProjectSouthPoleLabel =
+        (showLatitudeLearningModeRef.current || showLongitudeLearningModeRef.current) &&
+        camera &&
+        renderer &&
+        southPoleLabelPoint instanceof THREE.Vector3;
 
-      if (canProjectLabel) {
-        const projected = projectToScreen(labelPoint, camera, renderer);
+      if (canProjectLatitudeLabel) {
+        const projected = projectToScreen(latitudeLabelPoint, camera, renderer);
 
         if (latitudeLabelRef.current && projected.visible) {
           latitudeLabelRef.current.style.display = "block";
-          latitudeLabelRef.current.textContent = labelText;
+          latitudeLabelRef.current.textContent = latitudeLabelText;
           latitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 12}px)`;
         } else if (latitudeLabelRef.current) {
           latitudeLabelRef.current.style.display = "none";
         }
-      } else {
-        if (latitudeLabelRef.current) {
-          latitudeLabelRef.current.style.display = "none";
+      } else if (latitudeLabelRef.current) {
+        latitudeLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectLongitudeLabel) {
+        const projected = projectToScreen(longitudeLabelPoint, camera, renderer);
+
+        if (longitudeLabelRef.current && projected.visible) {
+          longitudeLabelRef.current.style.display = "block";
+          longitudeLabelRef.current.textContent = longitudeLabelText;
+          longitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 16}px)`;
+        } else if (longitudeLabelRef.current) {
+          longitudeLabelRef.current.style.display = "none";
         }
+      } else if (longitudeLabelRef.current) {
+        longitudeLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectSouthLongitudeLabel) {
+        const projected = projectToScreen(southLongitudeLabelPoint, camera, renderer);
+
+        if (southLongitudeLabelRef.current && projected.visible) {
+          southLongitudeLabelRef.current.style.display = "block";
+          southLongitudeLabelRef.current.textContent = southLongitudeLabelText;
+          southLongitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
+        } else if (southLongitudeLabelRef.current) {
+          southLongitudeLabelRef.current.style.display = "none";
+        }
+      } else if (southLongitudeLabelRef.current) {
+        southLongitudeLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectPrimeMeridianLabel) {
+        const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
+
+        if (primeMeridianLabelRef.current && projected.visible) {
+          primeMeridianLabelRef.current.style.display = "block";
+          primeMeridianLabelRef.current.textContent = primeMeridianLabelText;
+          primeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
+        } else if (primeMeridianLabelRef.current) {
+          primeMeridianLabelRef.current.style.display = "none";
+        }
+      } else if (primeMeridianLabelRef.current) {
+        primeMeridianLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectOppositeMeridianLabel) {
+        const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
+
+        if (oppositeMeridianLabelRef.current && projected.visible) {
+          oppositeMeridianLabelRef.current.style.display = "block";
+          oppositeMeridianLabelRef.current.textContent = oppositeMeridianLabelText;
+          oppositeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 18}px)`;
+        } else if (oppositeMeridianLabelRef.current) {
+          oppositeMeridianLabelRef.current.style.display = "none";
+        }
+      } else if (oppositeMeridianLabelRef.current) {
+        oppositeMeridianLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectSelectedMeridianLabel) {
+        const projected = projectToScreen(selectedMeridianLabelPoint, camera, renderer);
+
+        if (selectedMeridianLabelRef.current && projected.visible) {
+          selectedMeridianLabelRef.current.style.display = "block";
+          selectedMeridianLabelRef.current.textContent = selectedMeridianLabelText;
+          selectedMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 14}px)`;
+        } else if (selectedMeridianLabelRef.current) {
+          selectedMeridianLabelRef.current.style.display = "none";
+        }
+      } else if (selectedMeridianLabelRef.current) {
+        selectedMeridianLabelRef.current.style.display = "none";
       }
 
       if (canProjectPlaneLabel) {
@@ -454,6 +966,34 @@ function App() {
         }
       } else if (planeLabelRef.current) {
         planeLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectNorthPoleLabel) {
+        const projected = projectToScreen(northPoleLabelPoint, camera, renderer);
+
+        if (northPoleLabelRef.current && projected.visible) {
+          northPoleLabelRef.current.style.display = "block";
+          northPoleLabelRef.current.textContent = northPoleLabelText;
+          northPoleLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 28}px)`;
+        } else if (northPoleLabelRef.current) {
+          northPoleLabelRef.current.style.display = "none";
+        }
+      } else if (northPoleLabelRef.current) {
+        northPoleLabelRef.current.style.display = "none";
+      }
+
+      if (canProjectSouthPoleLabel) {
+        const projected = projectToScreen(southPoleLabelPoint, camera, renderer);
+
+        if (southPoleLabelRef.current && projected.visible) {
+          southPoleLabelRef.current.style.display = "block";
+          southPoleLabelRef.current.textContent = southPoleLabelText;
+          southPoleLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 20}px)`;
+        } else if (southPoleLabelRef.current) {
+          southPoleLabelRef.current.style.display = "none";
+        }
+      } else if (southPoleLabelRef.current) {
+        southPoleLabelRef.current.style.display = "none";
       }
 
       controls.update();
@@ -495,8 +1035,10 @@ function App() {
     };
   }, []);
 
-  const teachingText =
+  const latitudeTeachingText =
     "Latitude is the angle at the centre of the Earth, or the arc of the meridian between the Equator and the parallel of latitude of the place.";
+  const longitudeTeachingText =
+    "Longitude is the arc of the Equator, or the angle at the Pole, contained between the Prime Meridian and the meridian passing through the place.";
 
   return (
     <>
@@ -520,7 +1062,7 @@ function App() {
             left: 20,
             display: "grid",
             gap: 10,
-            width: 320,
+            width: 340,
             padding: 12,
             borderRadius: 12,
             background: "rgba(8, 10, 18, 0.72)",
@@ -531,64 +1073,78 @@ function App() {
             pointerEvents: "auto",
           }}
         >
-        <button
-          onClick={() => setShowLatitudes((value) => !value)}
-          style={{ padding: "10px 14px", cursor: "pointer" }}
-        >
-          {showLatitudes ? "Hide Latitudes" : "Show Latitudes"}
-        </button>
-        <button
-          onClick={() => setShowMeridians((value) => !value)}
-          style={{ padding: "10px 14px", cursor: "pointer" }}
-        >
-          {showMeridians ? "Hide Meridians" : "Show Meridians"}
-        </button>
-        <button
-          onClick={() => setShowLatitudeTeachingMode((value) => !value)}
-          style={{ padding: "10px 14px", cursor: "pointer" }}
-        >
-          {showLatitudeTeachingMode ? "Latitude Teaching Mode: On" : "Latitude Teaching Mode: Off"}
-        </button>
-
-        {showLatitudeTeachingMode ? (
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-              padding: 12,
-              borderRadius: 10,
-              background: "rgba(255, 255, 255, 0.06)",
-            }}
+          <button
+            onClick={() => setShowLatitudes((value) => !value)}
+            style={{ padding: "10px 14px", cursor: "pointer" }}
           >
-            <label style={{ display: "grid", gap: 6, textAlign: "left" }}>
-              <span>Latitude: {latitudeDegrees} deg</span>
-              <input
-                type="range"
-                min="-90"
-                max="90"
-                step="1"
-                value={latitudeDegrees}
-                onChange={(event) => setLatitudeDegrees(Number(event.target.value))}
-              />
-            </label>
+            {showLatitudes ? "Hide Latitudes" : "Show Latitudes"}
+          </button>
+          <button
+            onClick={() => setShowMeridians((value) => !value)}
+            style={{ padding: "10px 14px", cursor: "pointer" }}
+          >
+            {showMeridians ? "Hide Meridians" : "Show Meridians"}
+          </button>
+          <button
+            onClick={() => setShowLatitudeLearningMode((value) => !value)}
+            style={{ padding: "10px 14px", cursor: "pointer" }}
+          >
+            {showLatitudeLearningMode ? "Latitude Learning Mode: On" : "Latitude Learning Mode: Off"}
+          </button>
+          <button
+            onClick={() => setShowLongitudeLearningMode((value) => !value)}
+            style={{ padding: "10px 14px", cursor: "pointer" }}
+          >
+            {showLongitudeLearningMode ? "Longitude Learning Mode: On" : "Longitude Learning Mode: Off"}
+          </button>
 
-            <label style={{ display: "grid", gap: 6, textAlign: "left" }}>
-              <span>Longitude: {longitudeDegrees} deg</span>
-              <input
-                type="range"
-                min="-180"
-                max="180"
-                step="1"
-                value={longitudeDegrees}
-                onChange={(event) => setLongitudeDegrees(Number(event.target.value))}
-              />
-            </label>
+          {showLatitudeLearningMode || showLongitudeLearningMode ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+                padding: 12,
+                borderRadius: 10,
+                background: "rgba(255, 255, 255, 0.06)",
+              }}
+            >
+              <label style={{ display: "grid", gap: 6, textAlign: "left" }}>
+                <span>Latitude: {formatLatitudeValue(latitudeDegrees)}</span>
+                <input
+                  type="range"
+                  min="-90"
+                  max="90"
+                  step="1"
+                  value={latitudeDegrees}
+                  onChange={(event) => setLatitudeDegrees(Number(event.target.value))}
+                />
+              </label>
 
-            <p style={{ fontSize: 13, lineHeight: 1.45, color: "#d1d5db", textAlign: "left" }}>
-              {teachingText}
-            </p>
-          </div>
-        ) : null}
+              <label style={{ display: "grid", gap: 6, textAlign: "left" }}>
+                <span>Longitude: {formatLongitudeValue(longitudeDegrees)}</span>
+                <input
+                  type="range"
+                  min="-180"
+                  max="180"
+                  step="1"
+                  value={longitudeDegrees}
+                  onChange={(event) => setLongitudeDegrees(Number(event.target.value))}
+                />
+              </label>
+
+              {showLatitudeLearningMode ? (
+                <p style={{ fontSize: 13, lineHeight: 1.45, color: "#d1d5db", textAlign: "left" }}>
+                  {latitudeTeachingText}
+                </p>
+              ) : null}
+
+              {showLongitudeLearningMode ? (
+                <p style={{ fontSize: 13, lineHeight: 1.45, color: "#d1d5db", textAlign: "left" }}>
+                  {longitudeTeachingText}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -609,6 +1165,86 @@ function App() {
       />
 
       <div
+        ref={longitudeLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#ffd7d7",
+          fontSize: 14,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={southLongitudeLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#ffd7d7",
+          fontSize: 13,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={primeMeridianLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#4ade80",
+          fontSize: 12,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={oppositeMeridianLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#c084fc",
+          fontSize: 12,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={selectedMeridianLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#f59e0b",
+          fontSize: 12,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
         ref={planeLabelRef}
         style={{
           position: "fixed",
@@ -617,6 +1253,38 @@ function App() {
           display: "none",
           color: "#b8f3ff",
           fontSize: 13,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={northPoleLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#f8ffff",
+          fontSize: 12,
+          fontWeight: 600,
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+          transform: "translate(-50%, -50%)",
+          whiteSpace: "nowrap",
+        }}
+      />
+
+      <div
+        ref={southPoleLabelRef}
+        style={{
+          position: "fixed",
+          zIndex: 11,
+          pointerEvents: "none",
+          display: "none",
+          color: "#ff8c7a",
+          fontSize: 12,
           fontWeight: 600,
           textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
           transform: "translate(-50%, -50%)",
