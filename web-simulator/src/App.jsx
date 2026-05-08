@@ -118,6 +118,17 @@ function projectToScreen(point, camera, renderer) {
   };
 }
 
+function isFrontFacing(point, camera) {
+  if (!(point instanceof THREE.Vector3)) {
+    return false;
+  }
+
+  const cameraPosition = new THREE.Vector3();
+  camera.getWorldPosition(cameraPosition);
+
+  return point.clone().dot(cameraPosition) >= 0;
+}
+
 function formatLatitudeValue(latitude) {
   if (latitude === 0) {
     return `0${"\u00B0"} at Equator`;
@@ -148,12 +159,12 @@ function createLatitudeLearningLayer() {
       side: THREE.DoubleSide,
     }),
     equator: new THREE.LineBasicMaterial({
-      color: 0xffd166,
+      color: 0xffda7a,
       depthTest: true,
       depthWrite: false,
     }),
     meridian: new THREE.LineBasicMaterial({
-      color: 0x7dd3fc,
+      color: 0x90dcff,
       depthTest: true,
       depthWrite: false,
     }),
@@ -333,12 +344,12 @@ function createLongitudeLearningLayer() {
 
   const styles = {
     equator: new THREE.LineBasicMaterial({
-      color: 0xffd166,
+      color: 0xffda7a,
       depthTest: true,
       depthWrite: false,
     }),
     primeMeridian: new THREE.LineBasicMaterial({
-      color: 0xb8f3ff,
+      color: 0xc8f7ff,
       depthTest: true,
       depthWrite: false,
     }),
@@ -367,7 +378,7 @@ function createLongitudeLearningLayer() {
       side: THREE.DoubleSide,
     }),
     selectedMeridian: new THREE.LineBasicMaterial({
-      color: 0xfca5a5,
+      color: 0xfdb5b5,
       depthTest: true,
       depthWrite: false,
     }),
@@ -813,6 +824,10 @@ function App() {
       const selectedMeridianLabelState = longitudeLayer?.selectedMeridianLabelState;
       const selectedMeridianLabelPoint = selectedMeridianLabelState?.point;
       const selectedMeridianLabelText = selectedMeridianLabelState?.text ?? "";
+      const northPrimeArm = longitudeLayer?.northPrimeArm;
+      const northSelectedArm = longitudeLayer?.northSelectedArm;
+      const southPrimeArm = longitudeLayer?.southPrimeArm;
+      const southSelectedArm = longitudeLayer?.southSelectedArm;
       const planeLabelState = latitudeLayer?.planeLabelState;
       const planeLabelPoint = planeLabelState?.point;
       const planeLabelText = planeLabelState?.text ?? "";
@@ -901,7 +916,11 @@ function App() {
       if (canProjectSouthLongitudeLabel) {
         const projected = projectToScreen(southLongitudeLabelPoint, camera, renderer);
 
-        if (southLongitudeLabelRef.current && projected.visible) {
+        if (
+          southLongitudeLabelRef.current &&
+          projected.visible &&
+          isFrontFacing(southLongitudeLabelPoint, camera)
+        ) {
           southLongitudeLabelRef.current.style.display = "block";
           southLongitudeLabelRef.current.textContent = southLongitudeLabelText;
           southLongitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
@@ -912,38 +931,14 @@ function App() {
         southLongitudeLabelRef.current.style.display = "none";
       }
 
-      if (canProjectPrimeMeridianLabel) {
-        const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
-
-        if (primeMeridianLabelRef.current && projected.visible) {
-          primeMeridianLabelRef.current.style.display = "block";
-          primeMeridianLabelRef.current.textContent = primeMeridianLabelText;
-          primeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
-        } else if (primeMeridianLabelRef.current) {
-          primeMeridianLabelRef.current.style.display = "none";
-        }
-      } else if (primeMeridianLabelRef.current) {
-        primeMeridianLabelRef.current.style.display = "none";
-      }
-
-      if (canProjectOppositeMeridianLabel) {
-        const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
-
-        if (oppositeMeridianLabelRef.current && projected.visible) {
-          oppositeMeridianLabelRef.current.style.display = "block";
-          oppositeMeridianLabelRef.current.textContent = oppositeMeridianLabelText;
-          oppositeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 18}px)`;
-        } else if (oppositeMeridianLabelRef.current) {
-          oppositeMeridianLabelRef.current.style.display = "none";
-        }
-      } else if (oppositeMeridianLabelRef.current) {
-        oppositeMeridianLabelRef.current.style.display = "none";
-      }
-
       if (canProjectSelectedMeridianLabel) {
         const projected = projectToScreen(selectedMeridianLabelPoint, camera, renderer);
 
-        if (selectedMeridianLabelRef.current && projected.visible) {
+        if (
+          selectedMeridianLabelRef.current &&
+          projected.visible &&
+          isFrontFacing(selectedMeridianLabelPoint, camera)
+        ) {
           selectedMeridianLabelRef.current.style.display = "block";
           selectedMeridianLabelRef.current.textContent = selectedMeridianLabelText;
           selectedMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 14}px)`;
@@ -952,6 +947,63 @@ function App() {
         }
       } else if (selectedMeridianLabelRef.current) {
         selectedMeridianLabelRef.current.style.display = "none";
+      }
+
+      const isPrimeMeridianFront = isFrontFacing(primeMeridianLabelPoint, camera);
+      const isOppositeMeridianFront = isFrontFacing(oppositeMeridianLabelPoint, camera);
+      const isNorthPoleFront = isFrontFacing(northPoleLabelPoint, camera);
+      const isSouthPoleFront = isFrontFacing(southLongitudeLabelPoint, camera);
+
+      if (
+        primeMeridianLabelRef.current &&
+        canProjectPrimeMeridianLabel &&
+        isPrimeMeridianFront
+      ) {
+        const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
+
+        if (projected.visible) {
+          primeMeridianLabelRef.current.style.display = "block";
+          primeMeridianLabelRef.current.textContent = primeMeridianLabelText;
+          primeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
+        } else {
+          primeMeridianLabelRef.current.style.display = "none";
+        }
+      } else if (primeMeridianLabelRef.current) {
+        primeMeridianLabelRef.current.style.display = "none";
+      }
+
+      if (
+        oppositeMeridianLabelRef.current &&
+        canProjectOppositeMeridianLabel &&
+        isOppositeMeridianFront
+      ) {
+        const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
+
+        if (projected.visible) {
+          oppositeMeridianLabelRef.current.style.display = "block";
+          oppositeMeridianLabelRef.current.textContent = oppositeMeridianLabelText;
+          oppositeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 18}px)`;
+        } else {
+          oppositeMeridianLabelRef.current.style.display = "none";
+        }
+      } else if (oppositeMeridianLabelRef.current) {
+        oppositeMeridianLabelRef.current.style.display = "none";
+      }
+
+      if (northPrimeArm) {
+        northPrimeArm.visible = isNorthPoleFront;
+      }
+
+      if (northSelectedArm) {
+        northSelectedArm.visible = isNorthPoleFront;
+      }
+
+      if (southPrimeArm) {
+        southPrimeArm.visible = isSouthPoleFront;
+      }
+
+      if (southSelectedArm) {
+        southSelectedArm.visible = isSouthPoleFront;
       }
 
       if (canProjectPlaneLabel) {
