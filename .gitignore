@@ -1,0 +1,17 @@
+# Node / Vite
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+
+# Python legacy prototype
+legacy-python/__pycache__/
+legacy-python/*.pyc
+legacy-python/**/*.pyc
+
+# Editor and OS files
+.DS_Store
+.idea
+*.swp
+*.swo

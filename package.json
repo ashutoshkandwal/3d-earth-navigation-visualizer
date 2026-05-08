@@ -1,0 +1,10 @@
+{
+  "name": "3d-earth-navigation-visualizer",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix web-simulator run dev",
+    "build": "npm --prefix web-simulator run build",
+    "lint": "npm --prefix web-simulator run lint",
+    "preview": "npm --prefix web-simulator run preview"
+  }
+}
