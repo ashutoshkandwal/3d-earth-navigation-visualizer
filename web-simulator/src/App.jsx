@@ -2,102 +2,146 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-function createCircle(radius, segments, axis = "xy") {
-  const points = [];
-  for (let i = 0; i <= segments; i++) {
-    const theta = (i * Math.PI * 2) / segments;
+const EARTH_RADIUS = 2;
+const GRID_RADIUS = EARTH_RADIUS * 1.002;
 
-    if (axis === "xy") {
-      points.push(new THREE.Vector3(radius * Math.cos(theta), radius * Math.sin(theta), 0));
-    } else if (axis === "xz") {
-      points.push(new THREE.Vector3(radius * Math.cos(theta), 0, radius * Math.sin(theta)));
-    }
+function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
+function createSpherePoint(radius, latitude, longitude) {
+  const lat = toRadians(latitude);
+  const lon = toRadians(longitude);
+
+  return new THREE.Vector3(
+    radius * Math.cos(lat) * Math.cos(lon),
+    radius * Math.sin(lat),
+    radius * Math.cos(lat) * Math.sin(lon),
+  );
+}
+
+function createLatitudeGeometry(radius, latitude, segments = 128) {
+  const points = [];
+
+  for (let i = 0; i < segments; i += 1) {
+    const longitude = (i / segments) * 360;
+    points.push(createSpherePoint(radius, latitude, longitude));
   }
+
+  return new THREE.BufferGeometry().setFromPoints(points);
+}
+
+function createLongitudeGeometry(radius, longitude, segments = 128) {
+  const points = [];
+
+  for (let i = 0; i <= segments; i += 1) {
+    const latitude = -90 + (i / segments) * 180;
+    points.push(createSpherePoint(radius, latitude, longitude));
+  }
+
   return new THREE.BufferGeometry().setFromPoints(points);
 }
 
 function App() {
   const mountRef = useRef(null);
+  const showLatitudesRef = useRef(true);
+  const showMeridiansRef = useRef(true);
+  const [showLatitudes, setShowLatitudes] = useState(true);
+  const [showMeridians, setShowMeridians] = useState(true);
 
-  const [showLat, setShowLat] = useState(false);
-  const [showLon, setShowLon] = useState(false);
+  useEffect(() => {
+    showLatitudesRef.current = showLatitudes;
+  }, [showLatitudes]);
+
+  useEffect(() => {
+    showMeridiansRef.current = showMeridians;
+  }, [showMeridians]);
 
   useEffect(() => {
     const mount = mountRef.current;
 
+    if (!mount) {
+      return undefined;
+    }
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000,
+    );
     camera.position.set(0, 0, 5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     mount.appendChild(renderer.domElement);
 
-    // Earth
+    const depthSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(EARTH_RADIUS, 64, 64),
+      new THREE.MeshBasicMaterial({
+        colorWrite: false,
+        depthWrite: true,
+      }),
+    );
+    scene.add(depthSphere);
+
     const earth = new THREE.Mesh(
-      new THREE.SphereGeometry(2, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x0077ff, wireframe: true, opacity: 0.4, transparent: true })
+      new THREE.SphereGeometry(EARTH_RADIUS, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x0077ff,
+        wireframe: true,
+        opacity: 0.4,
+        transparent: true,
+      }),
     );
     scene.add(earth);
 
-    // Groups
     const latGroup = new THREE.Group();
     const lonGroup = new THREE.Group();
 
-    // 🔵 Latitudes
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0xf5f7fa,
+      depthTest: true,
+      depthWrite: false,
+      transparent: false,
+    });
+
     for (let lat = -80; lat <= 80; lat += 10) {
-      const r = 2 * Math.cos((lat * Math.PI) / 180);
-      const y = 2 * Math.sin((lat * Math.PI) / 180);
-
-      const geometry = createCircle(r, 100, "xy");
-      geometry.translate(0, y, 0);
-
-      const line = new THREE.Line(
-        geometry,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
-      );
+      const geometry = createLatitudeGeometry(GRID_RADIUS, lat, 128);
+      const line = new THREE.LineLoop(geometry, lineMaterial);
       latGroup.add(line);
     }
 
-    // 🔵 Longitudes
-    for (let lon = 0; lon < 180; lon += 10) {
-      const angle = (lon * Math.PI) / 180;
-
-      const points = [];
-      for (let i = 0; i <= 100; i++) {
-        const theta = (i * Math.PI) / 100 - Math.PI / 2;
-
-        const x = 2 * Math.cos(theta) * Math.cos(angle);
-        const y = 2 * Math.sin(theta);
-        const z = 2 * Math.cos(theta) * Math.sin(angle);
-
-        points.push(new THREE.Vector3(x, y, z));
-      }
-
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-      const line = new THREE.Line(
-        geometry,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
-      );
-
+    for (let lon = 0; lon < 360; lon += 15) {
+      const geometry = createLongitudeGeometry(GRID_RADIUS, lon, 128);
+      const line = new THREE.Line(geometry, lineMaterial);
       lonGroup.add(line);
     }
 
     scene.add(latGroup);
     scene.add(lonGroup);
 
-    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const animate = () => {
-      requestAnimationFrame(animate);
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
 
-      latGroup.visible = showLat;
-      lonGroup.visible = showLon;
+    window.addEventListener("resize", handleResize);
+
+    let frameId = 0;
+    const animate = () => {
+      frameId = window.requestAnimationFrame(animate);
+
+      latGroup.visible = showLatitudesRef.current;
+      lonGroup.visible = showMeridiansRef.current;
 
       controls.update();
       renderer.render(scene, camera);
@@ -105,14 +149,36 @@ function App() {
 
     animate();
 
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", handleResize);
+      controls.dispose();
 
-    return () => mount.removeChild(renderer.domElement);
-  }, [showLat, showLon]);
+      const disposedMaterials = new Set();
+      const disposedGeometries = new Set();
+
+      scene.traverse((object) => {
+        if (object.geometry && !disposedGeometries.has(object.geometry)) {
+          disposedGeometries.add(object.geometry);
+          object.geometry.dispose();
+        }
+
+        if (object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+
+          materials.forEach((material) => {
+            if (!disposedMaterials.has(material)) {
+              disposedMaterials.add(material);
+              material.dispose();
+            }
+          });
+        }
+      });
+
+      mount.removeChild(renderer.domElement);
+      renderer.dispose();
+    };
+  }, []);
 
   return (
     <>
@@ -121,21 +187,33 @@ function App() {
         style={{ width: "100vw", height: "100vh" }}
       />
 
-      {/* 🔵 Control Panel */}
-      <div style={{
-        position: "absolute",
-        top: 20,
-        left: 20,
-        background: "rgba(0,0,0,0.6)",
-        padding: 10,
-        borderRadius: 5
-      }}>
-        <button onClick={() => setShowLat(!showLat)}>
-          Toggle Latitudes
+      <div
+        style={{
+          position: "fixed",
+          top: 20,
+          left: 20,
+          zIndex: 10,
+          display: "grid",
+          gap: 10,
+          padding: 12,
+          borderRadius: 12,
+          background: "rgba(8, 10, 18, 0.72)",
+          border: "1px solid rgba(255, 255, 255, 0.14)",
+          boxShadow: "0 12px 30px rgba(0, 0, 0, 0.35)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <button
+          onClick={() => setShowLatitudes((value) => !value)}
+          style={{ padding: "10px 14px", cursor: "pointer" }}
+        >
+          {showLatitudes ? "Hide Latitudes" : "Show Latitudes"}
         </button>
-        <br /><br />
-        <button onClick={() => setShowLon(!showLon)}>
-          Toggle Meridians
+        <button
+          onClick={() => setShowMeridians((value) => !value)}
+          style={{ padding: "10px 14px", cursor: "pointer" }}
+        >
+          {showMeridians ? "Hide Meridians" : "Show Meridians"}
         </button>
       </div>
     </>
