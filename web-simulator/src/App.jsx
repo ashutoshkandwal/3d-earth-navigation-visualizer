@@ -118,6 +118,13 @@ function projectToScreen(point, camera, renderer) {
   };
 }
 
+function clampLabelToViewport(x, y, padding = 24) {
+  return {
+    x: Math.min(Math.max(x, padding), window.innerWidth - padding),
+    y: Math.min(Math.max(y, padding), window.innerHeight - padding),
+  };
+}
+
 function isFrontFacing(point, camera) {
   if (!(point instanceof THREE.Vector3)) {
     return false;
@@ -889,9 +896,10 @@ function Visualizer() {
         const projected = projectToScreen(latitudeLabelPoint, camera, renderer);
 
         if (latitudeLabelRef.current && projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 12, 32);
           latitudeLabelRef.current.style.display = "block";
           latitudeLabelRef.current.textContent = latitudeLabelText;
-          latitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 12}px)`;
+          latitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (latitudeLabelRef.current) {
           latitudeLabelRef.current.style.display = "none";
         }
@@ -903,9 +911,10 @@ function Visualizer() {
         const projected = projectToScreen(longitudeLabelPoint, camera, renderer);
 
         if (longitudeLabelRef.current && projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 16, 32);
           longitudeLabelRef.current.style.display = "block";
           longitudeLabelRef.current.textContent = longitudeLabelText;
-          longitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 16}px)`;
+          longitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (longitudeLabelRef.current) {
           longitudeLabelRef.current.style.display = "none";
         }
@@ -921,9 +930,10 @@ function Visualizer() {
           projected.visible &&
           isFrontFacing(southLongitudeLabelPoint, camera)
         ) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 18, 32);
           southLongitudeLabelRef.current.style.display = "block";
           southLongitudeLabelRef.current.textContent = southLongitudeLabelText;
-          southLongitudeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
+          southLongitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (southLongitudeLabelRef.current) {
           southLongitudeLabelRef.current.style.display = "none";
         }
@@ -939,9 +949,10 @@ function Visualizer() {
           projected.visible &&
           isFrontFacing(selectedMeridianLabelPoint, camera)
         ) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 14, 32);
           selectedMeridianLabelRef.current.style.display = "block";
           selectedMeridianLabelRef.current.textContent = selectedMeridianLabelText;
-          selectedMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 14}px)`;
+          selectedMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (selectedMeridianLabelRef.current) {
           selectedMeridianLabelRef.current.style.display = "none";
         }
@@ -962,9 +973,10 @@ function Visualizer() {
         const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
 
         if (projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 18, 32);
           primeMeridianLabelRef.current.style.display = "block";
           primeMeridianLabelRef.current.textContent = primeMeridianLabelText;
-          primeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 18}px)`;
+          primeMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else {
           primeMeridianLabelRef.current.style.display = "none";
         }
@@ -980,9 +992,10 @@ function Visualizer() {
         const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
 
         if (projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 18, 32);
           oppositeMeridianLabelRef.current.style.display = "block";
           oppositeMeridianLabelRef.current.textContent = oppositeMeridianLabelText;
-          oppositeMeridianLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 18}px)`;
+          oppositeMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else {
           oppositeMeridianLabelRef.current.style.display = "none";
         }
@@ -1010,9 +1023,10 @@ function Visualizer() {
         const projected = projectToScreen(planeLabelPoint, camera, renderer);
 
         if (planeLabelRef.current && projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 12, 32);
           planeLabelRef.current.style.display = "block";
           planeLabelRef.current.textContent = planeLabelText;
-          planeLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 12}px)`;
+          planeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (planeLabelRef.current) {
           planeLabelRef.current.style.display = "none";
         }
@@ -1024,9 +1038,10 @@ function Visualizer() {
         const projected = projectToScreen(northPoleLabelPoint, camera, renderer);
 
         if (northPoleLabelRef.current && projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 28, 32);
           northPoleLabelRef.current.style.display = "block";
           northPoleLabelRef.current.textContent = northPoleLabelText;
-          northPoleLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y - 28}px)`;
+          northPoleLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (northPoleLabelRef.current) {
           northPoleLabelRef.current.style.display = "none";
         }
@@ -1038,9 +1053,10 @@ function Visualizer() {
         const projected = projectToScreen(southPoleLabelPoint, camera, renderer);
 
         if (southPoleLabelRef.current && projected.visible) {
+          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 20, 32);
           southPoleLabelRef.current.style.display = "block";
           southPoleLabelRef.current.textContent = southPoleLabelText;
-          southPoleLabelRef.current.style.transform = `translate(${projected.x + 12}px, ${projected.y + 20}px)`;
+          southPoleLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
         } else if (southPoleLabelRef.current) {
           southPoleLabelRef.current.style.display = "none";
         }
