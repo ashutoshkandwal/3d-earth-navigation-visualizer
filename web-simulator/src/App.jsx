@@ -125,6 +125,27 @@ function clampLabelToViewport(x, y, padding = 24) {
   };
 }
 
+function updateLabelElement(labelRef, projected, labelText, offsetX, offsetY, labelName) {
+  const labelElement = labelRef.current;
+
+  console.log("[label-debug]", labelName, {
+    hasElement: Boolean(labelElement),
+    projectedX: projected?.x,
+    projectedY: projected?.y,
+    projectedVisible: projected?.visible,
+    currentDisplay: labelElement?.style.display,
+    text: labelText,
+  });
+
+  if (labelElement && projected.visible) {
+    labelElement.style.display = "block";
+    labelElement.textContent = labelText;
+    labelElement.style.transform = `translate(${projected.x + offsetX}px, ${projected.y + offsetY}px)`;
+  } else if (labelElement) {
+    labelElement.style.display = "none";
+  }
+}
+
 function isFrontFacing(point, camera) {
   if (!(point instanceof THREE.Vector3)) {
     return false;
@@ -895,14 +916,7 @@ function Visualizer() {
       if (canProjectLatitudeLabel) {
         const projected = projectToScreen(latitudeLabelPoint, camera, renderer);
 
-        if (latitudeLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 12, 32);
-          latitudeLabelRef.current.style.display = "block";
-          latitudeLabelRef.current.textContent = latitudeLabelText;
-          latitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (latitudeLabelRef.current) {
-          latitudeLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(latitudeLabelRef, projected, latitudeLabelText, 12, -12, "latitude");
       } else if (latitudeLabelRef.current) {
         latitudeLabelRef.current.style.display = "none";
       }
@@ -910,14 +924,7 @@ function Visualizer() {
       if (canProjectLongitudeLabel) {
         const projected = projectToScreen(longitudeLabelPoint, camera, renderer);
 
-        if (longitudeLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 16, 32);
-          longitudeLabelRef.current.style.display = "block";
-          longitudeLabelRef.current.textContent = longitudeLabelText;
-          longitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (longitudeLabelRef.current) {
-          longitudeLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(longitudeLabelRef, projected, longitudeLabelText, 12, 16, "longitude");
       } else if (longitudeLabelRef.current) {
         longitudeLabelRef.current.style.display = "none";
       }
@@ -925,14 +932,7 @@ function Visualizer() {
       if (canProjectSouthLongitudeLabel) {
         const projected = projectToScreen(southLongitudeLabelPoint, camera, renderer);
 
-        if (southLongitudeLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 18, 32);
-          southLongitudeLabelRef.current.style.display = "block";
-          southLongitudeLabelRef.current.textContent = southLongitudeLabelText;
-          southLongitudeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (southLongitudeLabelRef.current) {
-          southLongitudeLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(southLongitudeLabelRef, projected, southLongitudeLabelText, 12, -18, "southLongitude");
       } else if (southLongitudeLabelRef.current) {
         southLongitudeLabelRef.current.style.display = "none";
       }
@@ -940,14 +940,14 @@ function Visualizer() {
       if (canProjectSelectedMeridianLabel) {
         const projected = projectToScreen(selectedMeridianLabelPoint, camera, renderer);
 
-        if (selectedMeridianLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 14, 32);
-          selectedMeridianLabelRef.current.style.display = "block";
-          selectedMeridianLabelRef.current.textContent = selectedMeridianLabelText;
-          selectedMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (selectedMeridianLabelRef.current) {
-          selectedMeridianLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(
+          selectedMeridianLabelRef,
+          projected,
+          selectedMeridianLabelText,
+          12,
+          -14,
+          "selectedMeridian",
+        );
       } else if (selectedMeridianLabelRef.current) {
         selectedMeridianLabelRef.current.style.display = "none";
       }
@@ -963,14 +963,7 @@ function Visualizer() {
       ) {
         const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
 
-        if (projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 18, 32);
-          primeMeridianLabelRef.current.style.display = "block";
-          primeMeridianLabelRef.current.textContent = primeMeridianLabelText;
-          primeMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else {
-          primeMeridianLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(primeMeridianLabelRef, projected, primeMeridianLabelText, 12, -18, "primeMeridian");
       } else if (primeMeridianLabelRef.current) {
         primeMeridianLabelRef.current.style.display = "none";
       }
@@ -981,14 +974,14 @@ function Visualizer() {
       ) {
         const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
 
-        if (projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 18, 32);
-          oppositeMeridianLabelRef.current.style.display = "block";
-          oppositeMeridianLabelRef.current.textContent = oppositeMeridianLabelText;
-          oppositeMeridianLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else {
-          oppositeMeridianLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(
+          oppositeMeridianLabelRef,
+          projected,
+          oppositeMeridianLabelText,
+          12,
+          18,
+          "oppositeMeridian",
+        );
       } else if (oppositeMeridianLabelRef.current) {
         oppositeMeridianLabelRef.current.style.display = "none";
       }
@@ -1012,14 +1005,7 @@ function Visualizer() {
       if (canProjectPlaneLabel) {
         const projected = projectToScreen(planeLabelPoint, camera, renderer);
 
-        if (planeLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 12, 32);
-          planeLabelRef.current.style.display = "block";
-          planeLabelRef.current.textContent = planeLabelText;
-          planeLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (planeLabelRef.current) {
-          planeLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(planeLabelRef, projected, planeLabelText, 12, 12, "plane");
       } else if (planeLabelRef.current) {
         planeLabelRef.current.style.display = "none";
       }
@@ -1027,14 +1013,7 @@ function Visualizer() {
       if (canProjectNorthPoleLabel) {
         const projected = projectToScreen(northPoleLabelPoint, camera, renderer);
 
-        if (northPoleLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 28, 32);
-          northPoleLabelRef.current.style.display = "block";
-          northPoleLabelRef.current.textContent = northPoleLabelText;
-          northPoleLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (northPoleLabelRef.current) {
-          northPoleLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(northPoleLabelRef, projected, northPoleLabelText, 12, -28, "northPole");
       } else if (northPoleLabelRef.current) {
         northPoleLabelRef.current.style.display = "none";
       }
@@ -1042,14 +1021,7 @@ function Visualizer() {
       if (canProjectSouthPoleLabel) {
         const projected = projectToScreen(southPoleLabelPoint, camera, renderer);
 
-        if (southPoleLabelRef.current && projected.visible) {
-          const labelPos = clampLabelToViewport(projected.x + 12, projected.y + 20, 32);
-          southPoleLabelRef.current.style.display = "block";
-          southPoleLabelRef.current.textContent = southPoleLabelText;
-          southPoleLabelRef.current.style.transform = `translate(${labelPos.x}px, ${labelPos.y}px)`;
-        } else if (southPoleLabelRef.current) {
-          southPoleLabelRef.current.style.display = "none";
-        }
+        updateLabelElement(southPoleLabelRef, projected, southPoleLabelText, 12, 20, "southPole");
       } else if (southPoleLabelRef.current) {
         southPoleLabelRef.current.style.display = "none";
       }
@@ -1209,8 +1181,10 @@ function Visualizer() {
       <div
         ref={latitudeLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#ffffff",
@@ -1225,8 +1199,10 @@ function Visualizer() {
       <div
         ref={longitudeLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#ffd7d7",
@@ -1241,8 +1217,10 @@ function Visualizer() {
       <div
         ref={southLongitudeLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#ffd7d7",
@@ -1257,8 +1235,10 @@ function Visualizer() {
       <div
         ref={primeMeridianLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#4ade80",
@@ -1273,8 +1253,10 @@ function Visualizer() {
       <div
         ref={oppositeMeridianLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#c084fc",
@@ -1289,8 +1271,10 @@ function Visualizer() {
       <div
         ref={selectedMeridianLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#f59e0b",
@@ -1305,8 +1289,10 @@ function Visualizer() {
       <div
         ref={planeLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#b8f3ff",
@@ -1321,8 +1307,10 @@ function Visualizer() {
       <div
         ref={northPoleLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#f8ffff",
@@ -1337,8 +1325,10 @@ function Visualizer() {
       <div
         ref={southPoleLabelRef}
         style={{
-          position: "fixed",
-          zIndex: 11,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
           pointerEvents: "none",
           display: "none",
           color: "#ff8c7a",
