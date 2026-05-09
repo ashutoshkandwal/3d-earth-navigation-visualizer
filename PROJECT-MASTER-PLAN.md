@@ -156,6 +156,43 @@ Module 01.2:
 
 ---
 
+## 13. Website Deployment and Client Hosting Plan
+
+- Current plan is to first deploy and test the visualizer on our own website/domain.
+- GitHub will store and version-control the source code.
+- Vercel will be used initially to build and host the React/Three.js web simulator.
+- The main website will act as the front door, with either:
+  - a launch button to the Vercel app, or
+  - a subdomain such as `visualizer.ourdomain.com`.
+- Initial deployment should be public or simple demo access only.
+- Full authentication is not required in Phase 1.
+- Future authentication should be planned but not implemented now.
+- Authentication may later include:
+  - password-protected demo access,
+  - student/instructor login,
+  - client organization login,
+  - role-based access,
+  - admin/instructor dashboard.
+- Later, for client websites, preferred model is:
+  - our GitHub + our Vercel + client subdomain/DNS link,
+  - so we retain control of updates, fixes, and maintenance.
+- Client-side requirement later:
+  - create a subdomain such as `visualizer.clientdomain.com`,
+  - add DNS CNAME record provided by Vercel,
+  - add a website button/page linking to the simulator.
+- Avoid asking clients for hosting passwords, cPanel access, FTP access, or server credentials unless absolutely necessary.
+- Long-term business model can become hosted SaaS, where clients access the simulator through their own subdomain while we maintain the application.
+
+### Immediate Action
+
+- Keep current development focused on a working online MVP.
+- Do not build full authentication yet.
+- Keep code structure future-ready for auth by reserving folders or modules such as `src/auth`, `src/api`, and `src/modules`.
+- Confirm the app builds successfully from `web-simulator`.
+- Do not break the existing Latitude Teaching Mode or current React/Three.js simulator.
+
+---
+
 ## Final Note
 
 This is not just a project.
