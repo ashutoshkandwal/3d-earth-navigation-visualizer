@@ -925,11 +925,7 @@ function Visualizer() {
       if (canProjectSouthLongitudeLabel) {
         const projected = projectToScreen(southLongitudeLabelPoint, camera, renderer);
 
-        if (
-          southLongitudeLabelRef.current &&
-          projected.visible &&
-          isFrontFacing(southLongitudeLabelPoint, camera)
-        ) {
+        if (southLongitudeLabelRef.current && projected.visible) {
           const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 18, 32);
           southLongitudeLabelRef.current.style.display = "block";
           southLongitudeLabelRef.current.textContent = southLongitudeLabelText;
@@ -944,11 +940,7 @@ function Visualizer() {
       if (canProjectSelectedMeridianLabel) {
         const projected = projectToScreen(selectedMeridianLabelPoint, camera, renderer);
 
-        if (
-          selectedMeridianLabelRef.current &&
-          projected.visible &&
-          isFrontFacing(selectedMeridianLabelPoint, camera)
-        ) {
+        if (selectedMeridianLabelRef.current && projected.visible) {
           const labelPos = clampLabelToViewport(projected.x + 12, projected.y - 14, 32);
           selectedMeridianLabelRef.current.style.display = "block";
           selectedMeridianLabelRef.current.textContent = selectedMeridianLabelText;
@@ -967,8 +959,7 @@ function Visualizer() {
 
       if (
         primeMeridianLabelRef.current &&
-        canProjectPrimeMeridianLabel &&
-        isPrimeMeridianFront
+        canProjectPrimeMeridianLabel
       ) {
         const projected = projectToScreen(primeMeridianLabelPoint, camera, renderer);
 
@@ -986,8 +977,7 @@ function Visualizer() {
 
       if (
         oppositeMeridianLabelRef.current &&
-        canProjectOppositeMeridianLabel &&
-        isOppositeMeridianFront
+        canProjectOppositeMeridianLabel
       ) {
         const projected = projectToScreen(oppositeMeridianLabelPoint, camera, renderer);
 
