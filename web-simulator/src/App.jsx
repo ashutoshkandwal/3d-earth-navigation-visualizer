@@ -603,7 +603,7 @@ function createLongitudeLearningLayer() {
   };
 }
 
-function App() {
+function Visualizer() {
   const mountRef = useRef(null);
   const latitudeLabelRef = useRef(null);
   const longitudeLabelRef = useRef(null);
@@ -1345,6 +1345,114 @@ function App() {
       />
     </>
   );
+}
+
+function LandingPage({ onLaunch }) {
+  return (
+    <main
+      style={{
+        minHeight: "100svh",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+        background:
+          "radial-gradient(circle at top, rgba(13, 91, 134, 0.42), transparent 38%), linear-gradient(180deg, #03111a 0%, #061b29 52%, #02060a 100%)",
+        color: "#e8f4fb",
+      }}
+    >
+      <section
+        style={{
+          width: "min(720px, 100%)",
+          display: "grid",
+          gap: "22px",
+          padding: "40px 28px",
+          borderRadius: "24px",
+          background: "rgba(4, 14, 24, 0.72)",
+          border: "1px solid rgba(130, 198, 235, 0.18)",
+          boxShadow: "0 24px 80px rgba(0, 0, 0, 0.4)",
+          backdropFilter: "blur(14px)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <p
+            style={{
+              margin: 0,
+              textTransform: "uppercase",
+              letterSpacing: "0.24em",
+              fontSize: 12,
+              color: "#9bd4ee",
+            }}
+          >
+            Maritime Teaching Simulator
+          </p>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(2.2rem, 6vw, 4.8rem)",
+              lineHeight: 1.02,
+              letterSpacing: "-0.04em",
+              color: "#f7fbff",
+            }}
+          >
+            3D Earth Navigation Visualizer
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+              lineHeight: 1.6,
+              color: "#c8dbe6",
+            }}
+          >
+            Interactive maritime navigation teaching simulator
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gap: 16, justifyItems: "center" }}>
+          <button
+            type="button"
+            onClick={onLaunch}
+            style={{
+              appearance: "none",
+              border: "none",
+              borderRadius: "999px",
+              padding: "16px 34px",
+              minWidth: "220px",
+              fontSize: "1rem",
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              color: "#04121b",
+              background: "linear-gradient(135deg, #7ae7ff 0%, #9ef0be 100%)",
+              boxShadow: "0 18px 40px rgba(74, 212, 255, 0.24)",
+              cursor: "pointer",
+            }}
+          >
+            Launch Visualizer
+          </button>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "0.92rem",
+              color: "#88a8b9",
+            }}
+          >
+            Prototype for testing and teaching use
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function App() {
+  const [started, setStarted] = useState(false);
+
+  if (!started) {
+    return <LandingPage onLaunch={() => setStarted(true)} />;
+  }
+
+  return <Visualizer />;
 }
 
 export default App;
